@@ -1,0 +1,210 @@
+services:
+  reverse-proxy:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./configs/reverse-proxy/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - gateway
+      - url-service-lb
+    networks:
+      - url-shortener-network
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - URL_SERVICE_HOST=url-service-lb
+    depends_on:
+      - url-service-lb
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+
+  url-service-lb:
+    image: nginx:alpine
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./configs/url-lb/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - url-service-1
+      - url-service-2
+    networks:
+      - url-shortener-network
+
+  url-service-1:
+    build: ./url-service
+    environment:
+      - CACHE_SERVICE_HOST=cache-service-lb
+      - STORAGE_SERVICE_HOST=storage-service-lb
+    depends_on:
+      - cache-service-lb
+      - storage-service-lb
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50051"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+      start_period: 5s
+
+  url-service-2:
+    build: ./url-service
+    environment:
+      - CACHE_SERVICE_HOST=cache-service-lb
+      - STORAGE_SERVICE_HOST=storage-service-lb
+    depends_on:
+      - cache-service-lb
+      - storage-service-lb
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50051"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+      start_period: 5s
+
+  cache-service-lb:
+    image: nginx:alpine
+    ports:
+      - "50052:50052"
+    volumes:
+      - ./configs/cache-lb/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - cache-service-1
+      - cache-service-2
+    networks:
+      - url-shortener-network
+
+
+  cache-service-1:
+    build: ./cache-service
+    environment:
+    - REDIS_HOST=redis
+    - REDIS_PORT=6379
+    networks:
+      - url-shortener-network
+    depends_on:
+    - redis
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50052"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+
+  cache-service-2:
+    build: ./cache-service
+    environment:
+    - REDIS_HOST=redis
+    - REDIS_PORT=6379
+    networks:
+      - url-shortener-network
+    depends_on:
+    - redis
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50052"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+
+  redis:
+    image: redis:8-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+
+
+  storage-service-lb:
+    image: nginx:alpine
+    ports:
+      - "50053:50053"
+    volumes:
+      - ./configs/storage-lb/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - storage-service-1
+      - storage-service-2
+    networks:
+      - url-shortener-network
+
+  storage-service-1:
+    build: ./storage-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=urlshortener
+      - DB_SSLMODE=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50053"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+
+  storage-service-2:
+    build: ./storage-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=urlshortener
+      - DB_SSLMODE=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50053"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: urlshortener
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./configs/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 1s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+networks:
+  url-shortener-network:
+    driver: bridge
