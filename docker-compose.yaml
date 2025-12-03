@@ -10,7 +10,19 @@ services:
       - gateway
       - url-service-lb
     networks:
-      - url-shortener-network
+      # - public-network
+      - private-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8081:8081"
+    networks:
+      # - public-network
+      # - internal-network
+      - private-network
+    depends_on:
+      - gateway
 
   gateway:
     build: ./gateway
@@ -21,7 +33,8 @@ services:
     depends_on:
       - url-service-lb
     networks:
-      - url-shortener-network
+      # - internal-network
+      - private-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 10s
@@ -38,7 +51,7 @@ services:
       - url-service-1
       - url-service-2
     networks:
-      - url-shortener-network
+      - private-network
 
   url-service-1:
     build: ./url-service
@@ -49,7 +62,7 @@ services:
       - cache-service-lb
       - storage-service-lb
     networks:
-      - url-shortener-network
+      - private-network
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=:50051"]
       interval: 10s
@@ -66,7 +79,7 @@ services:
       - cache-service-lb
       - storage-service-lb
     networks:
-      - url-shortener-network
+      - private-network
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=:50051"]
       interval: 10s
@@ -84,7 +97,7 @@ services:
       - cache-service-1
       - cache-service-2
     networks:
-      - url-shortener-network
+      - private-network
 
 
   cache-service-1:
@@ -93,7 +106,7 @@ services:
     - REDIS_HOST=redis
     - REDIS_PORT=6379
     networks:
-      - url-shortener-network
+      - private-network
     depends_on:
     - redis
     healthcheck:
@@ -108,7 +121,7 @@ services:
     - REDIS_HOST=redis
     - REDIS_PORT=6379
     networks:
-      - url-shortener-network
+      - private-network
     depends_on:
     - redis
     healthcheck:
@@ -123,7 +136,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - url-shortener-network
+      - private-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -141,7 +154,7 @@ services:
       - storage-service-1
       - storage-service-2
     networks:
-      - url-shortener-network
+      - private-network
 
   storage-service-1:
     build: ./storage-service
@@ -156,7 +169,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - url-shortener-network
+      - private-network
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=:50053"]
       interval: 10s
@@ -176,7 +189,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - url-shortener-network
+      - private-network
     healthcheck:
       test: ["CMD", "grpc_health_probe", "-addr=:50053"]
       interval: 10s
@@ -195,7 +208,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./configs/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
-      - url-shortener-network
+      - private-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -206,5 +219,9 @@ volumes:
   postgres_data:
 
 networks:
-  url-shortener-network:
+  private-network:
     driver: bridge
+  # public-network:
+  #   driver: bridge
+  # internal-network:
+  #   driver: bridge
