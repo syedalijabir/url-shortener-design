@@ -15,13 +15,10 @@ This repository contains a **microservice-based URL shortener** system, designed
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Running with Docker](#running-with-docker)
-  - [Local Development (Without Docker)](#local-development-without-docker)
 - [Configuration](#configuration)
 - [API Overview](#api-overview)
-- [Directory Structure](#directory-structure)
 - [Development Notes](#development-notes)
 - [Future Improvements](#future-improvements)
-- [License](#license)
 
 ---
 
