@@ -56,7 +56,7 @@ const UrlStats = () => {
     <div className="card">
       <h2>URL Statistics</h2>
       <p style={{ color: '#94a3b8', marginBottom: '1rem', fontSize: '0.9rem' }}>
-        Enter short code to get click statistics
+        Enter short code to get statistics
       </p>
       
       <form onSubmit={handleSubmit}>
@@ -95,7 +95,7 @@ const UrlStats = () => {
             <div className="stat-item">
               <div className="stat-value">{stats.click_count}</div>
               <div className="stat-label">
-                <FaMousePointer /> Total Clicks
+                <FaMousePointer /> Total Visits
               </div>
             </div>
             
